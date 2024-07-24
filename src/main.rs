@@ -18,5 +18,5 @@ fn main() {
     let needle: String = needle.join(" ");
 
     let result = find_alias(&aliases, &needle);
-    println!("{:?}", result);
+    println!("{}", result.iter().map(|s| s.to_string()).collect::<Vec<String>>().join(" "));
 }

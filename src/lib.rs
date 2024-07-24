@@ -1,6 +1,8 @@
 use core::fmt;
-
 use fancy_regex::Regex;
+
+pub mod util;
+mod validation;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Alias {
@@ -41,7 +43,14 @@ impl fmt::Display for Alias {
 }
 
 fn expand_command(aliases: &Vec<Alias>, command: &str) -> String {
-    let needle = command.split_whitespace().collect::<Vec<&str>>()[0];
+    println!("Command is {command}");
+    let needle = command.split_whitespace().collect::<Vec<&str>>();
+
+    if needle.len() == 0 {
+        return "".to_string();
+    }
+
+    let needle = needle[0];
 
     match aliases.iter().find(|alias| alias.name == needle) {
         Some(candidate) => command.replace(needle, &expand_command(aliases, &candidate.command)),
@@ -56,11 +65,17 @@ pub fn find_alias<'a>(haystack: &'a Vec<Alias>, needle: &str) -> Vec<Alias> {
     }
 
     let command: Vec<&str> = needle.split_whitespace().collect();
+    println!("Haystack is {:?}", haystack);
 
-    let aliases = haystack.iter().map(|alias| Alias {
-        name: alias.name.to_string(),
-        command: expand_command(&haystack, &alias.command),
-    }).collect();
+    let haystack = validation::filter_invalid_aliases(&haystack);
+    println!("Filtered successfully, {:?}", haystack);
+    let aliases = haystack
+        .iter()
+        .map(|alias| Alias {
+            name: alias.name.to_string(),
+            command: expand_command(&haystack, &alias.command),
+        })
+        .collect();
 
     let mut command = expand_command(&aliases, &command.join(" "));
 
@@ -71,20 +86,34 @@ pub fn find_alias<'a>(haystack: &'a Vec<Alias>, needle: &str) -> Vec<Alias> {
             .map(|candidate| candidate.to_owned())
             .collect();
 
-        if matches.len() == 0 {
-            command.pop();
+        if command.len() == 0 {
+            break vec![];
+        } else if matches.len() == 0 {
+            println!("Command is {command} and matches are {:?}", matches);
+            let mut temp: Vec<&str> = command.split_whitespace().collect();
+            temp.pop();
+            command = temp.join(" ");
         } else {
+            println!("Command is {command} and matches are {:?}", matches);
             break matches;
         }
     }
 }
 
+// ! Edge cases:
+// !   - Command is empty String
+// !   - Alias command equals to empty string
+// !   - Alias command equals to substring of command: git branch and git branc
+// !   - Infinitely recursive alias (pair of aliases referencing each other)
+// !   - Self-referntial alias
+// ! Bugs:
+// !   - command.pop() doesn't pop by word but by single character
 #[cfg(test)]
 mod tests {
     use crate::{expand_command, find_alias, Alias};
 
     #[test]
-    fn it_recognizes_valid_aliases() {
+    fn it_parses_valid_aliases() {
         Alias::from("g='git'").unwrap();
         Alias::from("gb='git branch'").unwrap();
         Alias::from("gba='git branch --all'").unwrap();
@@ -93,7 +122,7 @@ mod tests {
     }
 
     #[test]
-    fn it_recognizes_invalid_aliases() {
+    fn it_fails_to_parse_invalid_aliases() {
         Alias::from("").unwrap_err();
         Alias::from("git branch --all").unwrap_err();
         Alias::from("a=").unwrap_err();
@@ -142,9 +171,31 @@ mod tests {
     }
 
     #[test]
+    fn it_handles_empty_command() {
+        let aliases: Vec<Alias> = vec![
+            Alias::from("g='git'").unwrap(),
+            Alias::from("gb='git branch'").unwrap(),
+            Alias::from("gba='git branch --all'").unwrap(),
+        ];
+        assert_eq!(find_alias(&aliases, ""), vec![]);
+
+        let aliases: Vec<Alias> = vec![];
+        assert_eq!(find_alias(&aliases, ""), vec![]);
+
+        let aliases: Vec<Alias> = vec![Alias::from("a=''").unwrap()];
+        assert_eq!(find_alias(&aliases, ""), vec![]);
+    }
+
+    #[test]
     fn it_matches_nothing_if_no_alias_is_found() {
         let aliases: Vec<Alias> = vec![];
 
+        assert_eq!(
+            find_alias(&aliases, "git checkout -b"),
+            vec![] as Vec<Alias>
+        );
+
+        let aliases: Vec<Alias> = vec![Alias::from("a=''").unwrap()];
         assert_eq!(
             find_alias(&aliases, "git checkout -b"),
             vec![] as Vec<Alias>

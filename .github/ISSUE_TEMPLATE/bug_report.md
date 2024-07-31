@@ -20,7 +20,7 @@ Steps to reproduce the behavior:
 **Expected behaviour**
 A clear and concise description of what you expected to happen.
 
-**Terminal Output**
+**Output Logs**
 <!-- Paste in the output you get by simply running the command -->
 <!-- Additionally, run the `diagnose_last_alias` in your terminal and paste the output here -->
 

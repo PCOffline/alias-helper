@@ -1,8 +1,14 @@
 use core::fmt;
 use fancy_regex::Regex;
 
-pub mod util;
-mod validation;
+mod util;
+pub use util::log::init as init_logger;
+use util::{
+    log::*,
+    macros::{self, debug_value, function_name},
+    validation,
+};
+pub use util::log;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Alias {
@@ -17,10 +23,15 @@ pub enum AliasError {
 
 impl Alias {
     pub fn is_valid(maybe_alias: &str) -> bool {
-        let regex = Regex::new("^\\w+=('|\").*\\1$").expect("Failed to parse regex");
-        regex
-            .is_match(maybe_alias)
-            .expect("Failed to validate regex")
+        let regex_pattern = "^\\w+=('|\").*\\1$";
+        let regex = macros::unwrap_or_log_with_err!(
+            Regex::new(&regex_pattern),
+            ErrorCode::RegexParse,
+            &regex_pattern
+        );
+        regex.is_match(maybe_alias).unwrap_or_else(|err| {
+            ErrorCode::RegexValidationMatch(&regex, maybe_alias, err).log(function_name!())
+        })
     }
 
     pub fn from(maybe_alias: &str) -> Result<Alias, AliasError> {
@@ -43,32 +54,54 @@ impl fmt::Display for Alias {
 }
 
 fn expand_command(aliases: &Vec<Alias>, command: &str) -> String {
-    println!("Command is {command}");
+    debug_value!(aliases, command);
     let needle = command.split_whitespace().collect::<Vec<&str>>();
+    debug_value!(needle);
 
     if needle.len() == 0 {
+        trace!(
+            "[{}] command is empty; returning empty string",
+            function_name!()
+        );
         return "".to_string();
     }
 
     let needle = needle[0];
 
     match aliases.iter().find(|alias| alias.name == needle) {
-        Some(candidate) => command.replace(needle, &expand_command(aliases, &candidate.command)),
-        None => command.to_string(),
+        Some(candidate) => {
+            trace!("[{}] found candidate, expanding", function_name!());
+            let expanded = expand_command(aliases, &candidate.command);
+            debug_value!(expanded);
+            let output = command.replace(needle, &expanded);
+            debug!("[{}] returning {:?}", function_name!(), output);
+            output
+        }
+        None => {
+            trace!("[{}] nothing to expand, exiting", function_name!());
+            debug_value!(command);
+            command.to_string()
+        }
     }
 }
 
 /// Takes a list of aliases and returns the most matching one
 pub fn find_alias<'a>(haystack: &'a Vec<Alias>, needle: &str) -> Vec<Alias> {
+    debug_value!(haystack, needle);
+
     if haystack.len() == 0 {
+        trace!("[{}] haystack is empty, leaving", function_name!());
         return vec![];
     }
 
     let command: Vec<&str> = needle.split_whitespace().collect();
-    println!("Haystack is {:?}", haystack);
+    debug!("[{}] split command", function_name!());
+    debug_value!(command);
 
     let haystack = validation::filter_invalid_aliases(&haystack);
-    println!("Filtered successfully, {:?}", haystack);
+    debug!("[{}] filtered successfully", function_name!());
+    debug_value!(haystack);
+
     let aliases = haystack
         .iter()
         .map(|alias| Alias {
@@ -76,8 +109,10 @@ pub fn find_alias<'a>(haystack: &'a Vec<Alias>, needle: &str) -> Vec<Alias> {
             command: expand_command(&haystack, &alias.command),
         })
         .collect();
+    debug_value!(aliases);
 
     let mut command = expand_command(&aliases, &command.join(" "));
+    debug_value!(command);
 
     loop {
         let matches: Vec<Alias> = aliases
@@ -87,27 +122,26 @@ pub fn find_alias<'a>(haystack: &'a Vec<Alias>, needle: &str) -> Vec<Alias> {
             .collect();
 
         if command.len() == 0 {
+            trace!(
+                "[{}] command is empty, breaking out of loop",
+                function_name!()
+            );
             break vec![];
         } else if matches.len() == 0 {
-            println!("Command is {command} and matches are {:?}", matches);
+            trace!("[{}] no matches, trying substring", function_name!());
+            debug_value!(command, matches);
             let mut temp: Vec<&str> = command.split_whitespace().collect();
             temp.pop();
             command = temp.join(" ");
+            debug_value!(command);
         } else {
-            println!("Command is {command} and matches are {:?}", matches);
+            trace!("[{}] found match, breaking out of loop", function_name!());
+            debug_value!(command, matches);
             break matches;
         }
     }
 }
 
-// ! Edge cases:
-// !   - Command is empty String
-// !   - Alias command equals to empty string
-// !   - Alias command equals to substring of command: git branch and git branc
-// !   - Infinitely recursive alias (pair of aliases referencing each other)
-// !   - Self-referntial alias
-// ! Bugs:
-// !   - command.pop() doesn't pop by word but by single character
 #[cfg(test)]
 mod tests {
     use crate::{expand_command, find_alias, Alias};

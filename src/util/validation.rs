@@ -1,7 +1,11 @@
-use super::Alias;
+use crate::util::macros::{debug_value, function_name};
+
+use super::super::Alias;
+use log::*;
 use std::collections::HashSet;
 
 pub fn remove_cycles(commands: &Vec<Alias>) -> Vec<Alias> {
+    debug_value!(commands);
     let mut visited = HashSet::new();
     let mut stack = Vec::new(); // Use Vec to maintain order of traversal
     let mut in_cycle = HashSet::new(); // Nodes found in cycles
@@ -13,7 +17,9 @@ pub fn remove_cycles(commands: &Vec<Alias>) -> Vec<Alias> {
         stack: &mut Vec<String>,
         in_cycle: &mut HashSet<String>,
     ) {
+        debug_value!(node, commands, visited, stack, in_cycle);
         if stack.contains(&node.to_string()) {
+            trace!("[{}] stack contains node", function_name!());
             let cycle_start_index = stack.iter().position(|n| n == node).unwrap();
             for i in cycle_start_index..stack.len() {
                 in_cycle.insert(stack[i].clone());
@@ -21,28 +27,36 @@ pub fn remove_cycles(commands: &Vec<Alias>) -> Vec<Alias> {
             return;
         }
         if !visited.insert(node.to_string()) {
+            trace!("[{}] already visited this node", function_name!());
             return;
         }
+        debug!("[{}] pushing {:?} to stack", function_name!(), node);
         stack.push(node.to_string());
 
         let Some(node) = &commands.into_iter().find(|c| c.name == node) else {
-            println!("Cannot find {node} under commands: {:?}", commands);
+            debug!(
+                "[{}] Cannot find {:?} under commands: {:?}",
+                function_name!(),
+                node,
+                commands
+            );
             stack.pop();
             return;
         };
 
         if node.command.trim().len() == 0 {
+            trace!("[{}] node has no command", function_name!());
+            debug_value!(node);
             stack.pop();
             return;
         }
 
-        dfs(
-            &node.command.split_whitespace().nth(0).unwrap(),
-            commands,
-            visited,
-            stack,
-            in_cycle,
-        );
+        let command = &node.command.split_whitespace().nth(0).unwrap();
+
+        trace!("[{}] calling dfs again", function_name!());
+        debug_value!(command, commands, visited, stack, in_cycle);
+
+        dfs(command, commands, visited, stack, in_cycle);
 
         stack.pop();
     }
@@ -64,6 +78,8 @@ pub fn remove_cycles(commands: &Vec<Alias>) -> Vec<Alias> {
             result.push(alias.clone());
         }
     }
+
+    debug_value!(result);
 
     result
 }

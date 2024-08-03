@@ -11,16 +11,15 @@ macro_rules! function_name {
 
 /// Attempts to unwrap a given result, otherwise logs and panics with the given ErrorCode.
 /// ## Syntax
-/// ```no_run
-/// #[macro_use]
+/// ```ignore
+/// # use ::unwrap_or_log;
 /// unwrap_or_log!(Result, ErrorCode)
 /// ```
 ///
 /// This unwrap ignores the `err` value received in the closure, so it's important to use only ErroCodes that don't take an `err`` parameter.
 ///
 /// ## Example
-/// ```rust
-/// # #[macro_use]
+/// ```ignore
 /// enum ErrorCode<'a> {
 ///   Foo,
 ///   Bar(&'a str),
@@ -41,15 +40,11 @@ macro_rules! unwrap_or_log {
 
 /// Attempts to unwrap a given result, otherwise logs and panics with the given ErrorCode and the received error.
 /// ## Syntax
-/// ```no_run
+/// ```ignore
 /// unwrap_or_log_with_err!(Result, ErrorCode)
 /// ```
 ///
 /// Unlike [unwrap_or_log], this macro passes the `err` value from the closure to the ErrorCode tuple.
-/// 
-/// ## Example
-/// ```rust
-/// ``` 
 ///
 macro_rules! unwrap_or_log_with_err {
     ($result:expr, $error_variant:path $(, $arg:expr)* ) => {{

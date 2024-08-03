@@ -101,7 +101,8 @@ pub fn init(level: LevelFilter) {
 #[repr(u8)]
 pub enum ErrorCode<'a> {
     RegexParse(&'a str, fancy_regex::Error) = 2,
-    RegexValidationMatch(&'a Regex, &'a str, fancy_regex::Error) = 3,
+    RegexValidationMatch(&'a Regex, &'a str, fancy_regex::Error),
+    NoCommandInput,
 }
 
 impl<'a> ErrorCode<'a> {
@@ -130,6 +131,8 @@ impl<'a> ErrorCode<'a> {
                 );
                 self.default_err()
             }
+            ErrorCode::NoCommandInput => "No command provided. Please specify a command to execute. For help, use the '-h' or '--help' flag.".to_string(),
+            #[allow(unreachable_patterns)]
             _ => self.default_err(),
         };
 

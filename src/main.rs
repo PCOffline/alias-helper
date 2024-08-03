@@ -1,5 +1,4 @@
 use alias_helper::{self, find_alias, log::*, Alias};
-use exitcode::ExitCode;
 use log::LevelFilter;
 use std::{
     env,
@@ -24,7 +23,10 @@ fn main() {
     let needle: String = needle.join(" ");
 
     if aliases.len() == 0 || needle.len() == 0 {
-        // TODO: Change to ErrorCode
+        if needle.len() == 0 {
+            ErrorCode::NoCommandInput.log("main")
+        }
+
         process::exit(exitcode::NOINPUT);
     }
 

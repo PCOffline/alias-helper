@@ -30,6 +30,7 @@ macro_rules! function_name {
 /// let five = unwrap_or_panic!(foo, ErrorCode::Foo); // Unwraps successfully with the value 5
 /// let panics = unwrap_or_panic!(bar, ErrorCode::Bar("some data")); // Calls ErrorCode::Bar.log and panics with the defined error message.
 /// ```
+#[allow(unused_macros)]
 macro_rules! unwrap_or_panic {
     ($result:expr, $error_code:expr) => {{
         $result.unwrap_or_else(|_| $error_code.log_and_panic(function_name!()))
@@ -74,5 +75,6 @@ macro_rules! debug_value {
 
 pub(crate) use debug_value;
 pub(crate) use function_name;
+#[allow(unused_imports)]
 pub(crate) use unwrap_or_panic;
 pub(crate) use unwrap_or_panic_err;

@@ -146,8 +146,6 @@ impl fmt::Display for Alias {
 
 #[cfg(test)]
 mod tests {
-    use std::fmt::format;
-
     use crate::{Alias, Command, Name};
 
     use super::NewType;

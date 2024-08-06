@@ -1,4 +1,4 @@
-use alias_helper::{self, find_alias, log::*, Alias};
+use alias_helper::{self, find_alias, log::*, Alias, AliasError};
 use log::LevelFilter;
 use std::{
     env,
@@ -24,13 +24,14 @@ fn main() {
 
     if aliases.len() == 0 || needle.len() == 0 {
         if needle.len() == 0 {
-            ErrorCode::NoCommandInput.log("main")
+            ErrorCode::NoCommandInput.log_and_panic("main")
         }
 
-        process::exit(exitcode::NOINPUT);
+        ErrorCode::NoAliasesInput.log_and_panic("main");
     }
 
-    let result = find_alias(&aliases, &needle);
+    let result = find_alias(&aliases, &needle)
+        .unwrap_or_else(|err| ErrorCode::from(err).log_and_panic("main"));
 
     if result.len() > 0 {
         info!(
@@ -44,6 +45,6 @@ fn main() {
         process::exit(exitcode::OK);
     } else {
         // TODO: Change this to the error code
-        process::exit(1);
+        process::exit(ErrorCode::NoOutput.into());
     }
 }

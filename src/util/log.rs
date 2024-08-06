@@ -106,7 +106,7 @@ pub enum ErrorCode<'a> {
     RegexValidationMatch(&'a Regex, &'a str, fancy_regex::Error),
     NoCommandInput,
     NoAliasesInput,
-    ExpandAlias(&'a Command, AliasError),
+    ExpandCommand(&'a Command, AliasError),
     InvalidName(String),
     InvalidCommand(String),
     InvalidAlias(String),
@@ -140,7 +140,7 @@ impl<'a> ErrorCode<'a> {
             ErrorCode::InvalidAlias(alias) => {
                 debug!("[{function_name}] Received invalid alias {:?}", alias);
             }
-            ErrorCode::ExpandAlias(command, error) => {
+            ErrorCode::ExpandCommand(command, error) => {
                 debug!(
                     "[{function_name}] Could not expand command {:?}. Received the following error: {:?}",
                     command, error

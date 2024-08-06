@@ -61,17 +61,15 @@ pub fn find_alias<'a>(haystack: &'a Vec<Alias>, needle: &str) -> Result<Vec<Alia
     debug!("[{}] filtered successfully", function_name!());
     debug_value!(haystack);
 
-    let aliases = haystack
+    let aliases: Vec<Alias> = haystack
         .iter()
-        .map(|alias| Alias {
-            name: Name::from(alias),
-            command: unwrap_or_panic_err!(
-                expand_command(&haystack, &alias.command),
-                ErrorCode::ExpandAlias,
-                &alias.command
-            ),
+        .map(|alias| -> Result<Alias, AliasError> {
+            Ok(Alias {
+                name: Name::from(alias),
+                command: expand_command(&haystack, &alias.command)?,
+            })
         })
-        .collect();
+        .collect::<Result<Vec<Alias>, _>>()?;
     debug_value!(aliases);
 
     let command = Command::new(&command.join(" "))?;
@@ -79,7 +77,7 @@ pub fn find_alias<'a>(haystack: &'a Vec<Alias>, needle: &str) -> Result<Vec<Alia
         Ok(command) => command,
         Err(err) => {
             let new_err = err.clone();
-            ErrorCode::ExpandAlias(&command, err).log_debug(function_name!());
+            ErrorCode::ExpandCommand(&command, err).log_debug(function_name!());
             return Err(new_err);
         }
     };

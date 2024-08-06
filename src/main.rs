@@ -1,4 +1,4 @@
-use alias_helper::{self, find_alias, log::*, Alias, AliasError};
+use alias_helper::{self, find_alias, log::*, Alias};
 use log::LevelFilter;
 use std::{
     env,
@@ -44,7 +44,6 @@ fn main() {
         );
         process::exit(exitcode::OK);
     } else {
-        // TODO: Change this to the error code
-        process::exit(ErrorCode::NoOutput.into());
+        ErrorCode::NoOutput.log_and_panic("main");
     }
 }

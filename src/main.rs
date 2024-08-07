@@ -11,6 +11,12 @@ extern crate exitcode;
 fn main() {
     alias_helper::init_logger(LevelFilter::Info);
 
+    let needle: Vec<String> = env::args().skip(1).collect();
+
+    if needle.len() == 0 {
+        ErrorCode::NoCommandInput.log_and_panic("main")
+    }
+
     let stdin = io::stdin();
     let aliases: Vec<Alias> = stdin
         .lock()
@@ -19,14 +25,9 @@ fn main() {
         .map(|s| Alias::from(&s))
         .filter_map(|s| s.ok())
         .collect();
-    let needle: Vec<String> = env::args().skip(1).collect();
     let needle: String = needle.join(" ");
 
-    if aliases.len() == 0 || needle.len() == 0 {
-        if needle.len() == 0 {
-            ErrorCode::NoCommandInput.log_and_panic("main")
-        }
-
+    if aliases.len() == 0 {
         ErrorCode::NoAliasesInput.log_and_panic("main");
     }
 

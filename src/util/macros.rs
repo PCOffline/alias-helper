@@ -68,7 +68,7 @@ macro_rules! unwrap_or_panic_err {
 macro_rules! debug_value {
     ($($var:ident),+ $(,)?) => {
         $(
-            println!("[{}] {} is {:?}", function_name!(), stringify!($var), $var);
+            debug!("[{}] {} is {:?}", function_name!(), stringify!($var), $var);
         )+
     };
 }

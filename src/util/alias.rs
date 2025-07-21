@@ -1,6 +1,9 @@
 use super::log::*;
 use super::macros::*;
+use super::parser;
+use super::parser2;
 use fancy_regex::Regex;
+use nom::error::ErrorKind;
 use std::fmt;
 
 #[derive(Debug, Clone)]
@@ -25,7 +28,7 @@ impl NewType<String, &str> for Name {
             return Err(AliasError::InvalidName(name.to_string()));
         }
 
-        let regex_pattern = "^[\\w\\d]+$";
+        let regex_pattern = "^[^\t \u{00a0}\n]+$";
         let regex = unwrap_or_panic_err!(
             Regex::new(&regex_pattern),
             ErrorCode::RegexParse,
@@ -107,27 +110,46 @@ pub enum AliasError {
     ParseError(String),
     InvalidName(String),
     InvalidCommand(String),
+    MissingSeparator(String)
 }
+
+// impl ParseError<&str> for AliasError {
+//     fn from_error_kind(input: &str, kind: ErrorKind) -> Self {
+//         AliasError::ParseError(input.to_string())
+//     }
+//     fn append(input: &str, kind: ErrorKind, other: Self) -> Self {
+//         todo!();
+//     }
+//     fn from_char(input: &str, _: char) -> Self {
+//         todo!();
+//     }
+//     fn or(self, other: Self) -> Self {
+//         todo!();
+//     }
+// }
 
 impl Alias {
     fn is_valid(maybe_alias: &str) -> bool {
-        let regex_pattern = "^\\w+=('|\").*\\1$";
-        let regex = unwrap_or_panic_err!(
-            Regex::new(&regex_pattern),
-            ErrorCode::RegexParse,
-            &regex_pattern
-        );
+        // let regex_pattern = "^(?:(?:[^\"'=]|\\\\.)*|(?:'(?:[^'\\\\]|\\\\.)*')|(?:\"(?:[^\"\\\\]|\\\\.)*\"))=(?:(?:[^\"'\\\\\\s]|\\\\.)*|(?:'(?:[^'\\\\]|\\\\.)*')|(?:\"(?:[^\"\\\\]|\\\\.)*\"))$";
+        // let regex = unwrap_or_panic_err!(
+        //     Regex::new(&regex_pattern),
+        //     ErrorCode::RegexParse,
+        //     &regex_pattern
+        // );
 
-        regex.is_match(maybe_alias).unwrap_or_else(|err| {
-            ErrorCode::RegexValidationMatch(&regex, maybe_alias, err).log_debug(function_name!());
-            false
-        })
+        // regex.is_match(maybe_alias).unwrap_or_else(|err| {
+        //     ErrorCode::RegexValidationMatch(&regex, maybe_alias, err).log_debug(function_name!());
+        //     false
+        // })
+
+        false
     }
 
     pub fn from(maybe_alias: &str) -> Result<Alias, AliasError> {
         debug_value!(maybe_alias);
         if Alias::is_valid(maybe_alias) {
             let split: Vec<&str> = maybe_alias.split("=").collect();
+            debug_value!(split);
             let name = Name::new(split[0])?;
             let command = Command::new(&split[1][1..split[1].len() - 1])?;
 
@@ -135,6 +157,10 @@ impl Alias {
         }
 
         return Err(AliasError::ParseError(maybe_alias.to_string()));
+    }
+
+    pub fn new(name: Name, command: Command) -> Alias {
+        return Alias { name, command };
     }
 }
 
@@ -146,89 +172,78 @@ impl fmt::Display for Alias {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Alias, Command, Name};
+    use crate::{
+        util::test::{
+            get_invalid_alias_strings, get_invalid_name_strings, get_valid_alias_strings,
+            get_valid_command_strings, get_valid_name_strings,
+        },
+        Alias, Command, Name,
+    };
 
     use super::NewType;
 
     #[test]
     fn it_parses_valid_names() {
-        Name::new("abc").unwrap();
-        Name::new("123").unwrap();
-        Name::new("a32").unwrap();
-        Name::new("AcEf32").unwrap();
-        Name::new("_a32").unwrap();
-        Name::new("_a_32_").unwrap();
-        Name::new("_Acse_32").unwrap();
+        get_valid_name_strings(None).iter().for_each(|name| {
+            Name::new(&name).unwrap();
+        });
     }
 
     #[test]
     fn it_fails_to_parse_invalid_names() {
-        Name::new("").unwrap_err();
-        Name::new(" ").unwrap_err();
-        Name::new("  ").unwrap_err();
-        Name::new("$abc").unwrap_err();
-        Name::new("hello world").unwrap_err();
-        Name::new("(hey)").unwrap_err();
-        Name::new("#duh").unwrap_err();
-        Name::new("_Abc\\123").unwrap_err();
+        get_invalid_name_strings(None).iter().for_each(|name| {
+            Name::new(&name).unwrap_err();
+        });
     }
 
     #[test]
     fn it_parses_valid_commands() {
-        Command::new("").unwrap();
-        Command::new(" ").unwrap();
-        Command::new("git").unwrap();
-        Command::new("git branch").unwrap();
-        Command::new("git branch -d").unwrap();
-        Command::new("13$git 32jdasbranch _$jdasu").unwrap();
+        get_valid_command_strings(None).iter().for_each(|command| {
+            Command::new(&command).unwrap();
+        });
     }
 
     #[test]
     fn it_parses_valid_aliases() {
-        Alias::from("g='git'").unwrap();
-        Alias::from("gb='git branch'").unwrap();
-        Alias::from("gba='git branch --all'").unwrap();
-        Alias::from("gc='git checkout'").unwrap();
-        Alias::from("a=''").unwrap();
+        get_valid_alias_strings(None).iter().for_each(|alias| {
+            Alias::from(&alias).unwrap();
+        });
     }
 
     #[test]
     fn it_fails_to_parse_invalid_aliases() {
-        Alias::from("").unwrap_err();
-        Alias::from("git branch --all").unwrap_err();
-        Alias::from("a=").unwrap_err();
-        Alias::from("bla bla='some blah'").unwrap_err();
+        get_invalid_alias_strings(None).iter().for_each(|alias| {
+            Alias::from(&alias).unwrap_err();
+        });
     }
 
     #[test]
     fn it_gets_name_from_alias() {
         fn test_get_name_from_alias(name: &str) {
-            let alias = Alias::from(format!("{}='echo hello'", name).as_str()).unwrap();
+            let alias = Alias::from(
+                format!("{}='{}'", name, get_valid_command_strings(Some(1))[0]).as_str(),
+            )
+            .unwrap();
             assert_eq!(Name::from(&alias), Name::new(name).unwrap());
         }
 
-        test_get_name_from_alias("abc");
-        test_get_name_from_alias("123");
-        test_get_name_from_alias("a32");
-        test_get_name_from_alias("AcEf32");
-        test_get_name_from_alias("_a32");
-        test_get_name_from_alias("_a_32_");
-        test_get_name_from_alias("_Acse_32");
+        get_valid_name_strings(None)
+            .iter()
+            .for_each(|name| test_get_name_from_alias(name));
     }
 
     #[test]
     fn it_gets_command_from_alias() {
         fn test_get_command_from_alias(command: &str) {
-            let alias = Alias::from(format!("a='{}'", command).as_str()).unwrap();
+            let alias = Alias::from(
+                format!("{}='{}'", get_valid_name_strings(Some(1))[0], command).as_str(),
+            )
+            .unwrap();
             assert_eq!(Command::from(&alias), Command::new(command).unwrap());
         }
 
-        test_get_command_from_alias("abc");
-        test_get_command_from_alias("123");
-        test_get_command_from_alias("a32");
-        test_get_command_from_alias("AcEf32");
-        test_get_command_from_alias("_a32");
-        test_get_command_from_alias("_a_32_");
-        test_get_command_from_alias("_Acse_32");
+        get_valid_command_strings(None)
+            .iter()
+            .for_each(|command| test_get_command_from_alias(command));
     }
 }

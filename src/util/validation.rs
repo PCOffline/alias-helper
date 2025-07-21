@@ -75,13 +75,16 @@ pub fn remove_cycles(aliases: &Vec<Alias>) -> Vec<Alias> {
     }
 
     // Remove nodes found in cycles from the original map
-    let mut result: Vec<Alias> = vec![];
+    let mut result: Vec<Alias> = Vec::new();
+    result.reserve(aliases.len());
+
     for alias in aliases.into_iter() {
         if !in_cycle.contains(alias.name.get()) {
             result.push(alias.clone());
         }
     }
 
+    result.shrink_to_fit();
     debug_value!(result);
 
     result
@@ -95,15 +98,35 @@ pub fn filter_invalid_aliases(aliases: &Vec<Alias>) -> Vec<Alias> {
         .collect();
 
     remove_cycles(&aliases)
+        .into_iter()
+        .inspect(|alias| {
+            if alias.command.get().trim().len() == 0 {
+                println!("{} is empty", alias.name)
+            }
+        })
+        .collect()
 }
 
 #[cfg(test)]
 mod tests {
     use super::Alias;
-    use crate::validation;
+    use crate::{
+        util::test::{
+            get_circular_aliases, get_invalid_alias_strings, get_valid_alias_strings,
+            get_valid_aliases,
+        },
+        validation,
+    };
 
     #[test]
     fn it_filters_faulty_aliases() {
+        (2..20).for_each(|i| {
+            assert_eq!(
+                validation::filter_invalid_aliases(&get_circular_aliases(Some(i))),
+                vec![] as Vec<Alias>
+            )
+        });
+
         let aliases: Vec<Alias> = vec![
             Alias::from("a=''").unwrap(),
             Alias::from("aa='       '").unwrap(),
@@ -132,13 +155,16 @@ mod tests {
             Alias::from("gba='git branch --all'").unwrap(),
         ];
 
-        assert_eq!(validation::filter_invalid_aliases(&aliases), aliases);
+        assert_eq!(aliases, validation::filter_invalid_aliases(&aliases));
 
         let aliases: Vec<Alias> = vec![
             Alias::from("gb='git branch'").unwrap(),
             Alias::from("gba='gb --all'").unwrap(),
         ];
 
-        assert_eq!(validation::filter_invalid_aliases(&aliases), aliases);
+        assert_eq!(aliases, validation::filter_invalid_aliases(&aliases));
+
+        let aliases = get_valid_aliases(None);
+        assert_eq!(aliases, validation::filter_invalid_aliases(&aliases));
     }
 }

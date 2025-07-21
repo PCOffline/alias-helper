@@ -22,4 +22,4 @@
 #     fi
 # # }
 source ~/.zshrc
-alias | cargo run
+alias | ./target/release/alias-helper $@

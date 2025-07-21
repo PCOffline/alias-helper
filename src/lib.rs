@@ -2,7 +2,8 @@ mod util;
 pub use util::alias::*;
 pub use util::log;
 pub use util::log::init as init_logger;
-use util::{log::*, macros::*, validation};
+use util::parser::extract_alias;
+use util::{log::*, macros::*, validation, test, parser2, parser3};
 
 fn expand_command(aliases: &Vec<Alias>, command: &Command) -> Result<Command, AliasError> {
     debug_value!(aliases, command);
@@ -46,6 +47,11 @@ fn expand_command(aliases: &Vec<Alias>, command: &Command) -> Result<Command, Al
 
 /// Takes a list of aliases and returns the most matching one
 pub fn find_alias<'a>(haystack: &'a Vec<Alias>, needle: &str) -> Result<Vec<Alias>, AliasError> {
+    println!("{:?}", test::get_circular_aliases(Some(28)));
+    // ! FIXME: Delete this
+    extract_alias("abc").unwrap();
+    parser2::extract_alias("abc").unwrap();
+    parser3::parse_alias("abc").unwrap();
     debug_value!(haystack, needle);
 
     if haystack.len() == 0 {
@@ -114,7 +120,7 @@ pub fn find_alias<'a>(haystack: &'a Vec<Alias>, needle: &str) -> Result<Vec<Alia
 
 #[cfg(test)]
 mod tests {
-    use crate::{expand_command, find_alias, Alias, Command, NewType};
+    use crate::{expand_command, find_alias, util::parser::extract_alias, Alias, Command, NewType};
 
     #[test]
     fn it_matches_only_the_exact_alias() {

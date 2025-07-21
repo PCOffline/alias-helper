@@ -209,6 +209,7 @@ impl<'a> From<AliasError> for ErrorCode<'a> {
         match value {
             AliasError::InvalidCommand(command) => ErrorCode::InvalidCommand(command),
             AliasError::InvalidName(name) => ErrorCode::InvalidName(name),
+            AliasError::MissingSeparator(alias) => ErrorCode::InvalidAlias(alias),
             AliasError::ParseError(alias) => ErrorCode::InvalidAlias(alias),
         }
     }
